@@ -1,0 +1,12 @@
+{
+  "name": "deepgram-esp32-stt",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@deepgram/sdk": "^3.0.0",
+    "ws": "^8.13.0"
+  }
+}
