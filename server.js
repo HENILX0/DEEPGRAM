@@ -19,6 +19,10 @@ wss.on("connection", (ws) => {
   sample_rate: 16000,       // 🔥 MUST MATCH ESP32
   channels: 1
 });
+setTimeout(() => {
+  ws.send("LED_ON");
+  console.log("🔥 Force LED_ON sent");
+}, 5000);
 
   dgSocket.on("transcript", (data) => {
     const transcript =
