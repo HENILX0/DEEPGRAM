@@ -39,9 +39,11 @@ wss.on("connection", (ws) => {
     }
   });
 
-  ws.on("message", (audio) => {
-    dgSocket.send(audio);
-  });
+ ws.on("message", (audio) => {
+  console.log("🎧 Audio chunk received:", audio.length);
+  dgSocket.send(audio);
+});
+
 
   ws.on("close", () => {
     dgSocket.finish();
