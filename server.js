@@ -10,11 +10,15 @@ console.log("✅ WebSocket server running on port 10000");
 wss.on("connection", (ws) => {
   console.log("🔌 ESP32 connected");
 
-  const dgSocket = deepgram.listen.live({
-    model: "nova-2",
-    language: "en",
-    smart_format: true,
-  });
+ const dgSocket = deepgram.listen.live({
+  model: "nova-2",
+  language: "en",
+  smart_format: true,
+
+  encoding: "linear16",     // 🔥 VERY IMPORTANT
+  sample_rate: 16000,       // 🔥 MUST MATCH ESP32
+  channels: 1
+});
 
   dgSocket.on("transcript", (data) => {
     const transcript =
