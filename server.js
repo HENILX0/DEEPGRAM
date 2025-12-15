@@ -17,8 +17,29 @@ wss.on("connection", async (client) => {
     punctuate: false
   });
 
-  dgSocket.on("transcript", (data) => {
-    const text = data.channel.alternatives[0]?.transcript;
+  let lastCommand = "";
+
+dgSocket.on("transcript", (data) => {
+  if (!data.is_final) return; // ✅ sirf final sentence
+
+  const text = data.channel.alternatives[0]?.transcript;
+  if (!text) return;
+
+  const lower = text.toLowerCase().trim();
+  console.log("FINAL:", lower);
+
+  if (lower.includes("led on") && lastCommand !== "LED_ON") {
+    client.send("LED_ON");
+    lastCommand = "LED_ON";
+  }
+
+  if (lower.includes("led off") && lastCommand !== "LED_OFF") {
+    client.send("LED_OFF");
+    lastCommand = "LED_OFF";
+  }
+});
+
+
     if (!text) return;
 
     const lower = text.toLowerCase();
