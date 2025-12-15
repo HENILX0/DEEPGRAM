@@ -1,67 +1,47 @@
-const WebSocket = require("ws");
-const { createClient } = require("@deepgram/sdk");
+import WebSocket, { WebSocketServer } from "ws";
+import { createClient } from "@deepgram/sdk";
 
 const deepgram = createClient(process.env.DEEPGRAM_API_KEY);
 
-const PORT = process.env.PORT || 3000;
-const wss = new WebSocket.Server({ port: PORT });
+const wss = new WebSocketServer({ port: 10000 });
 
-wss.on("connection", async (client) => {
-  console.log("ESP32 connected");
+console.log("✅ WebSocket server running on port 10000");
+
+wss.on("connection", (ws) => {
+  console.log("🔌 ESP32 connected");
 
   const dgSocket = deepgram.listen.live({
-    model: "nova",
+    model: "nova-2",
     language: "en",
-    encoding: "linear16",
-    sample_rate: 16000,
-    punctuate: false
+    smart_format: true,
   });
 
-  let lastCommand = "";
+  dgSocket.on("transcript", (data) => {
+    const transcript =
+      data.channel?.alternatives?.[0]?.transcript;
 
-dgSocket.on("transcript", (data) => {
-  if (!data.is_final) return; // ✅ sirf final sentence
+    if (!transcript) return;
 
-  const text = data.channel.alternatives[0]?.transcript;
-  if (!text) return;
+    console.log("🗣️ Heard:", transcript);
 
-  const lower = text.toLowerCase().trim();
-  console.log("FINAL:", lower);
+    const cmd = transcript.toLowerCase();
 
-  if (lower.includes("led on") && lastCommand !== "LED_ON") {
-    client.send("LED_ON");
-    lastCommand = "LED_ON";
-  }
-
-  if (lower.includes("led off") && lastCommand !== "LED_OFF") {
-    client.send("LED_OFF");
-    lastCommand = "LED_OFF";
-  }
-});
-
-
-    if (!text) return;
-
-    const lower = text.toLowerCase();
-    console.log("Heard:", lower);
-
-    if (lower.includes("led on")) {
-      client.send("LED_ON");
+    if (cmd.includes("led on")) {
+      ws.send("LED_ON");
     }
-    if (lower.includes("led off")) {
-      client.send("LED_OFF");
+
+    if (cmd.includes("led off")) {
+      ws.send("LED_OFF");
     }
   });
 
-  client.on("message", (audio) => {
+  ws.on("message", (audio) => {
     dgSocket.send(audio);
   });
 
-  client.on("close", () => {
+  ws.on("close", () => {
     dgSocket.finish();
-    console.log("ESP32 disconnected");
+    console.log("❌ ESP32 disconnected");
   });
 });
-
-console.log("Server running on port", PORT);
 
