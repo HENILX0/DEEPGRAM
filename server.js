@@ -1,4 +1,5 @@
 import { createClient } from "@deepgram/sdk";
+import { WebSocketServer } from "ws";
 
 const deepgram = createClient(process.env.DEEPGRAM_API_KEY);
 
