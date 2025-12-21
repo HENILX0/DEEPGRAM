@@ -2,77 +2,86 @@ import { createClient, LiveTranscriptionEvents } from "@deepgram/sdk";
 import { WebSocketServer } from "ws";
 import http from "http";
 
-// Initialize Deepgram with your API Key (loaded from Render Environment Variables)
+// ================= DEEPGRAM INIT =================
 const deepgram = createClient(process.env.DEEPGRAM_API_KEY);
 
-// Create a standard HTTP server for Render health checks
+// ================= HTTP SERVER ==================
 const server = http.createServer((req, res) => {
   res.writeHead(200);
-  res.end("Nova-3 Voice Server is Active");
+  res.end("ESP32 Deepgram Voice Server Running");
 });
 
-// Attach WebSocket to the HTTP server
+// ================= WEBSOCKET ====================
 const wss = new WebSocketServer({ server });
 
 wss.on("connection", (ws) => {
-  console.log("🔌 ESP32 connected to Render");
+  console.log("🔌 ESP32 connected");
 
-  // Configure the Live Transcription for Nova-3
+  let dgReady = false;
+
+  // -------- DEEPGRAM LIVE SOCKET --------
   const dgSocket = deepgram.listen.live({
-    model: "nova-3",          // 🔥 Using Nova-3 as requested
+    model: "nova-3",
     language: "en-US",
     smart_format: true,
-    encoding: "linear16",    // Matches ESP32 16-bit PCM
-    sample_rate: 16000,      // Matches ESP32 I2S setting
+    encoding: "linear16",
+    sample_rate: 16000,
+    interim_results: false
   });
 
-  // Event: Deepgram connection is ready
+  // When Deepgram is ready
   dgSocket.on(LiveTranscriptionEvents.Open, () => {
-    console.log("🟢 Deepgram Nova-3 connection opened");
+    dgReady = true;
+    console.log("🟢 Deepgram Nova-3 connected");
   });
 
-  // Event: Deepgram sends back text
+  // Receive transcript
   dgSocket.on(LiveTranscriptionEvents.Transcript, (data) => {
-    // Navigate the 2025 JSON structure for Nova-3
-    const transcript = data.channel.alternatives[0].transcript;
-    
-    // Only process if there is actual text and it is a "final" result
-    if (transcript && data.is_final) {
-      console.log("🗣️ Heard:", transcript);
-      const cmd = transcript.toLowerCase();
+    try {
+      const transcript =
+        data.channel?.alternatives?.[0]?.transcript;
 
-      // Logic to send simple text commands back to ESP32
+      if (!transcript || !data.is_final) return;
+
+      const cmd = transcript.toLowerCase();
+      console.log("🗣️ Heard:", cmd);
+
+      // ===== COMMANDS =====
       if (cmd.includes("led on")) {
         ws.send("led on");
-        console.log("🚀 Command Sent: ON");
+        console.log("🚀 Sent: led on");
       }
+
       if (cmd.includes("led off")) {
         ws.send("led off");
-        console.log("🚀 Command Sent: OFF");
+        console.log("🚀 Sent: led off");
       }
+
+    } catch (err) {
+      console.error("Transcript parse error:", err);
     }
   });
 
-  // Receive binary audio from ESP32 and push to Deepgram
+  // Receive audio from ESP32
   ws.on("message", (audio) => {
-    if (dgSocket.getReadyState() === 1) { 
+    if (dgReady && dgSocket.getReadyState() === 1) {
       dgSocket.send(audio);
     }
   });
 
-  // Handle errors
-  dgSocket.on(LiveTranscriptionEvents.Error, (err) => {
-    console.error("🔴 Deepgram Socket Error:", err);
+  // Cleanup
+  ws.on("close", () => {
+    console.log("❌ ESP32 disconnected");
+    dgSocket.finish();
   });
 
-  ws.on("close", () => {
-    dgSocket.finish();
-    console.log("❌ ESP32 disconnected");
+  dgSocket.on(LiveTranscriptionEvents.Error, (err) => {
+    console.error("🔴 Deepgram Error:", err);
   });
 });
 
-// Listen on the port Render provides
+// ================= START SERVER =================
 const PORT = process.env.PORT || 10000;
 server.listen(PORT, () => {
-  console.log(`✅ Server listening on port ${PORT}`);
+  console.log(`✅ Server running on port ${PORT}`);
 });
